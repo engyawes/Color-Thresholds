@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Do Vision Encoders Exhibit Human-like Color Thresholds?</title>
+  <meta name="description" content="A large-scale study probing the chromatic sensitivity of 50+ pretrained vision encoders against human color discrimination thresholds (CIEDE2000). CIC 2026.">
+  <meta property="og:title" content="Do Vision Encoders Exhibit Human-like Color Thresholds?">
+  <meta property="og:description" content="Probing 50+ pretrained vision encoders against human chromatic discrimination ellipses. Best mIoU &lt; 0.25.">
+  <meta property="og:image" content="static/images/fig1_similarity_fields.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%233b4cc0'/%3E%3Cstop offset='.5' stop-color='%23f2f2f2'/%3E%3Cstop offset='1' stop-color='%23b40426'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='15' fill='url(%23g)'/%3E%3Cellipse cx='16' cy='16' rx='9' ry='4.5' transform='rotate(-30 16 16)' fill='none' stroke='%23111' stroke-width='2.2'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fbfaf7;
+      --surface: #ffffff;
+      --ink: #1a1c22;
+      --ink-2: #4a4f5c;
+      --ink-3: #7a7f8c;
+      --rule: #e4e1da;
+      --blue: #3b4cc0;
+      --red: #b40426;
+      --accent: #2b3a9e;
+      --chip: #f1efe9;
+      --sup: #2f78b5;
+      --ssl: #3a9a3a;
+      --lang: #9467bd;
+      --unsup: #d62728;
+      --maxw: 1040px;
+      --textw: 760px;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    img { max-width: 100%; display: block; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+    .text { max-width: var(--textw); margin: 0 auto; }
+
+    /* ---------- header ---------- */
+    header.hero { padding: 64px 0 40px; text-align: center; }
+    .venue {
+      display: inline-block;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      border: 1px solid var(--rule);
+      background: var(--surface);
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      font-family: "Newsreader", Georgia, serif;
+      font-weight: 500;
+      font-size: clamp(32px, 5.4vw, 54px);
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      margin: 0 auto 26px;
+      max-width: 900px;
+    }
+    .spectrum {
+      height: 6px;
+      width: min(340px, 70%);
+      margin: 0 auto 28px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #3b4cc0, #8db0fe 25%, #f2f0ee 50%, #f4987a 75%, #b40426);
+    }
+    .authors { font-size: 18px; margin: 0 auto 10px; max-width: 860px; }
+    .authors span { white-space: nowrap; margin: 0 9px; }
+    .authors a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+    .authors a:hover { border-color: var(--ink); }
+    .authors sup, .affils sup { color: var(--ink-3); font-size: 12px; margin-left: 1px; }
+    .affils { font-size: 14.5px; color: var(--ink-2); max-width: 860px; margin: 0 auto 30px; }
+    .affils span { display: inline-block; margin: 0 10px; }
+
+    .buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 18px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); background: #33363f; }
+    .btn svg { width: 17px; height: 17px; }
+    .btn.disabled { background: #b9bcc4; pointer-events: none; }
+
+    /* ---------- teaser ---------- */
+    .teaser {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 14px;
+      padding: 18px;
+      margin: 8px 0 14px;
+    }
+    .caption {
+      font-size: 14.5px;
+      color: var(--ink-2);
+      line-height: 1.55;
+      margin: 0 auto 0;
+      max-width: var(--maxw);
+    }
+    .caption b { color: var(--ink); font-weight: 600; }
+
+    /* ---------- sections ---------- */
+    section { padding: 52px 0; border-top: 1px solid var(--rule); }
+    section:first-of-type { border-top: 0; }
+    h2 {
+      font-family: "Newsreader", Georgia, serif;
+      font-weight: 500;
+      font-size: 32px;
+      margin: 0 0 20px;
+      letter-spacing: -0.005em;
+    }
+    h3 { font-size: 17px; font-weight: 600; margin: 0 0 6px; }
+    p { margin: 0 0 16px; }
+    .lede { font-size: 19px; color: var(--ink); }
+
+    /* TL;DR stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--rule);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 28px 0 0;
+    }
+    .stat { background: var(--surface); padding: 18px 18px 16px; }
+    .stat .n {
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 36px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat .l { font-size: 14px; color: var(--ink-2); line-height: 1.4; }
+
+    /* protocol steps */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 26px 0 8px;
+      counter-reset: step;
+    }
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      color: var(--ink-3);
+      position: absolute; top: 12px; right: 14px;
+    }
+    .step svg { width: 100%; max-width: 240px; height: auto; display: block; margin: 0 auto 12px; }
+    .step p { font-size: 14.5px; color: var(--ink-2); margin: 0; line-height: 1.5; }
+
+    .eq {
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 22px;
+      text-align: center;
+      margin: 22px 0;
+    }
+    .eq .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin-left: 8px; }
+    .eq .frac span:first-child { border-bottom: 1px solid var(--ink); padding: 0 6px 2px; }
+    .eq .frac span:last-child { padding: 2px 6px 0; }
+
+    .params {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin: 6px 0 0;
+      padding: 0; list-style: none;
+    }
+    .params li {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      background: var(--chip);
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: var(--ink-2);
+    }
+
+    /* findings */
+    .findings { display: grid; gap: 0; margin-top: 6px; }
+    .finding {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 18px;
+      padding: 20px 0;
+      border-top: 1px solid var(--rule);
+    }
+    .finding:first-child { border-top: 0; padding-top: 4px; }
+    .finding .k {
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 30px;
+      color: var(--ink-3);
+      line-height: 1;
+      padding-top: 2px;
+    }
+    .finding p { margin: 0; color: var(--ink-2); }
+
+    figure { margin: 30px 0 0; }
+    figure .frame {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    figcaption { font-size: 14.5px; color: var(--ink-2); margin-top: 12px; line-height: 1.55; }
+    figcaption b { color: var(--ink); font-weight: 600; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--ink-2); margin: 10px 0 0; }
+    .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+    /* model list */
+    details {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 0 18px;
+      margin-top: 26px;
+    }
+    summary {
+      cursor: pointer;
+      padding: 15px 0;
+      font-weight: 500;
+      list-style: none;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; font-family: "IBM Plex Mono", monospace; color: var(--ink-3); font-size: 18px; }
+    details[open] summary::after { content: "–"; }
+    .models { columns: 2; column-gap: 32px; padding: 4px 0 18px; }
+    .group { break-inside: avoid; margin-bottom: 16px; }
+    .group h4 {
+      font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+      margin: 0 0 6px; color: var(--ink-2); font-weight: 600;
+    }
+    .group ul { margin: 0; padding: 0; list-style: none; }
+    .group li { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-2); line-height: 1.75; word-break: break-all; }
+
+    /* bibtex */
+    .bib { position: relative; }
+    pre {
+      background: #1d2028;
+      color: #e6e6e6;
+      border-radius: 12px;
+      padding: 20px 22px;
+      overflow-x: auto;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13.5px;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .copy {
+      position: absolute; top: 12px; right: 12px;
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 7px;
+      font: 500 13px "IBM Plex Sans", sans-serif;
+      padding: 5px 11px;
+      cursor: pointer;
+    }
+    .copy:hover { background: rgba(255,255,255,.18); }
+
+    footer {
+      border-top: 1px solid var(--rule);
+      padding: 34px 0 46px;
+      font-size: 13.5px;
+      color: var(--ink-3);
+    }
+    footer p { margin: 0 0 10px; }
+
+    @media (max-width: 860px) {
+      .steps { grid-template-columns: repeat(2, 1fr); }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      body { font-size: 16px; }
+      header.hero { padding: 40px 0 28px; }
+      .steps { grid-template-columns: 1fr; }
+      .models { columns: 1; }
+      .finding { grid-template-columns: 38px 1fr; gap: 12px; }
+      .finding .k { font-size: 24px; }
+      .teaser, figure .frame { padding: 8px; }
+      section { padding: 40px 0; }
+      h2 { font-size: 27px; }
+      .stat .n { font-size: 30px; }
+    }
+
+    /* ---------- explainer ---------- */
+    .explainer {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 28px;
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      padding: 24px;
+      margin: 26px 0 8px;
+    }
+    .ex-stage { position: relative; align-self: start; }
+    #exSvg { width: 100%; height: auto; display: block; overflow: visible; touch-action: none; }
+    .ex-disc { fill: #f6f5f1; stroke: #cfcbc2; stroke-width: .006; stroke-dasharray: .03 .02; }
+    .ex-axes line { stroke: #d9d5cd; stroke-width: .004; }
+    .ex-axes text { font: .045px "IBM Plex Mono", monospace; fill: var(--ink-3); }
+    #exField { opacity: 0; transition: opacity .5s ease; pointer-events: none; }
+    #exPoints circle {
+      stroke: rgba(0,0,0,.18);
+      stroke-width: .004;
+      transition: fill .55s ease, r .35s ease, opacity .35s ease, stroke .3s ease, stroke-width .3s ease;
+      cursor: crosshair;
+    }
+    #exPoints circle.hov { stroke: #111 !important; stroke-width: .012 !important; }
+    #exEllipse {
+      fill: none; stroke: #111; stroke-width: .016;
+      opacity: 0; transition: opacity .45s ease;
+      pointer-events: none;
+    }
+    #exRef { stroke: #fff; stroke-width: .014; transition: r .4s ease; pointer-events: none; }
+    #exRadius line { stroke: var(--ink-2); stroke-width: .006; stroke-dasharray: .02 .015; }
+    #exRadius text { font: .05px "IBM Plex Sans", sans-serif; fill: var(--ink-2); }
+    #exRadius { transition: opacity .4s ease; }
+
+    .ex-tip, .if-tip {
+      position: absolute;
+      pointer-events: none;
+      background: #1d2028;
+      color: #f1f1f1;
+      font-size: 13px;
+      line-height: 1.45;
+      padding: 8px 10px;
+      border-radius: 8px;
+      white-space: nowrap;
+      transform: translate(-50%, calc(-100% - 12px));
+      box-shadow: 0 6px 18px rgba(0,0,0,.18);
+      z-index: 5;
+    }
+    .ex-tip .sw, .if-tip .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; border: 1px solid rgba(255,255,255,.35); }
+    .ex-tip .mono, .if-tip .mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #c9ccd6; }
+
+    .ex-panel { display: flex; flex-direction: column; min-width: 0; }
+    .ex-steps {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+      list-style: none; padding: 0; margin: 0 0 20px;
+      counter-reset: ex;
+    }
+    .ex-steps button {
+      width: 100%;
+      font: 500 12.5px "IBM Plex Sans", sans-serif;
+      color: var(--ink-3);
+      background: transparent;
+      border: 0;
+      border-top: 3px solid var(--rule);
+      padding: 8px 0 0;
+      text-align: left;
+      cursor: pointer;
+      counter-increment: ex;
+    }
+    .ex-steps button::before { content: counter(ex) " "; font-family: "IBM Plex Mono", monospace; }
+    .ex-steps button.done { color: var(--ink-2); border-top-color: #9aa3c9; }
+    .ex-steps button.on { color: var(--ink); border-top-color: var(--accent); }
+    .ex-body { flex: 1; }
+    .ex-kicker { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-3); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; }
+    .ex-body h3 { font-family: "Newsreader", Georgia, serif; font-weight: 500; font-size: 25px; margin: 0 0 10px; }
+    .ex-body p { font-size: 15.5px; color: var(--ink-2); line-height: 1.6; }
+    .ex-box {
+      background: var(--chip);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14.5px;
+      color: var(--ink-2);
+      margin: 4px 0 14px;
+    }
+    .ex-box:empty { display: none; }
+    .ex-box .row { display: flex; justify-content: space-between; gap: 12px; }
+    .ex-box .row + .row { margin-top: 3px; }
+    .ex-box b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ex-box .big { font-family: "Newsreader", Georgia, serif; font-size: 30px; color: var(--ink); line-height: 1.1; }
+    .ex-box .chip { display: inline-block; width: 34px; height: 34px; border-radius: 7px; vertical-align: middle; margin-right: 10px; border: 1px solid rgba(0,0,0,.08); }
+    .ex-box .frac2 { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; font-variant-numeric: tabular-nums; }
+    .ex-box .frac2 span:first-child { border-bottom: 1px solid var(--ink-2); padding: 0 4px; }
+
+    .ex-cbar { margin: 4px 0 14px; }
+    .ex-cbar-bar { height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.08); }
+    .ex-cbar-ticks, .ex-cbar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+    .ex-cbar-ticks { font-family: "IBM Plex Mono", monospace; margin-top: 3px; }
+    .ex-cbar-label { margin-top: 1px; }
+    .ex-cbar-label span:nth-child(2) { color: var(--ink-2); font-weight: 500; }
+
+    .ex-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13.5px; color: var(--ink-2); margin: 0 0 14px; }
+    .ex-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+    .lg-both { background: #3b4cc0; box-shadow: 0 0 0 2px #111 inset; }
+    .lg-p { background: #f2a07f; }
+    .lg-g { background: #fff; box-shadow: 0 0 0 2px #7a7f8c inset; }
+
+    .ex-opts { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+    .ex-opts label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+    .ex-opts input { accent-color: var(--accent); width: 15px; height: 15px; }
+    .ex-opts label[hidden] { display: none; }
+
+    .ex-nav { display: flex; gap: 8px; margin-top: 20px; }
+    .ex-nav .ex-btn:last-child { margin-left: auto; }
+    .ex-btn {
+      font: 500 14.5px "IBM Plex Sans", sans-serif;
+      border-radius: 999px;
+      padding: 8px 16px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+    }
+    .ex-btn.ghost { background: transparent; color: var(--ink); border-color: var(--rule); }
+    .ex-btn.ghost:hover { border-color: var(--ink-3); }
+    .ex-btn:disabled { opacity: .35; cursor: default; }
+
+    /* ---------- interactive figure 3 ---------- */
+    .if-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin: 2px 4px 6px; }
+    .if-title { font-weight: 600; font-size: 15px; }
+    .if-tabs { display: inline-flex; background: var(--chip); border-radius: 999px; padding: 3px; }
+    .if-tabs button {
+      border: 0; background: transparent; cursor: pointer;
+      font: 500 13.5px "IBM Plex Mono", monospace; color: var(--ink-2);
+      padding: 5px 12px; border-radius: 999px;
+    }
+    .if-tabs button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .if-plot { position: relative; }
+    #f3Svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+    #f3Svg .grid line { stroke: #ece9e3; }
+    #f3Svg .axis text { font: 12px "IBM Plex Mono", monospace; fill: var(--ink-3); }
+    #f3Svg .axis .lbl { font: 12.5px "IBM Plex Sans", sans-serif; fill: var(--ink-2); }
+    #f3Svg path.ln { fill: none; stroke-width: 2; stroke-linejoin: round; transition: opacity .2s ease, stroke-width .2s ease; }
+    #f3Svg.hl path.ln { opacity: .13; }
+    #f3Svg.hl path.ln.on { opacity: 1; stroke-width: 3.4; }
+    #f3Svg .dots circle { transition: opacity .2s ease; }
+    #f3Svg .guide { stroke: var(--ink-3); stroke-dasharray: 3 3; }
+    .if-legend { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 10px 4px 2px; }
+    .if-legend button {
+      display: inline-flex; align-items: center; gap: 7px;
+      border: 1px solid var(--rule); background: var(--surface);
+      border-radius: 999px; padding: 4px 11px 4px 9px;
+      font: 12.5px "IBM Plex Mono", monospace; color: var(--ink-2);
+      cursor: pointer;
+    }
+    .if-legend button i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+    .if-legend button.off { opacity: .4; text-decoration: line-through; }
+    .if-legend button:hover { border-color: var(--ink-3); }
+
+    @media (max-width: 860px) {
+      .explainer { grid-template-columns: 1fr; padding: 16px; gap: 18px; }
+      .ex-stage { max-width: 440px; margin: 0 auto; width: 100%; }
+    }
+    @media (max-width: 560px) {
+      .ex-steps button { font-size: 0; }
+      .ex-steps button::before { font-size: 13px; }
+      .ex-body h3 { font-size: 22px; }
+      .if-legend button { font-size: 11.5px; }
+    }
+
+    #f2Svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+    #f2Svg .grid line { stroke: #ece9e3; }
+    #f2Svg .axis text { font: 12px "IBM Plex Mono", monospace; fill: var(--ink-3); }
+    #f2Svg .axis .lbl { font: 12.5px "IBM Plex Sans", sans-serif; fill: var(--ink-2); }
+    #f2Svg .f2-bar { transition: opacity .15s ease; }
+    #f2Svg .f2-names text { font: 9.5px "IBM Plex Mono", monospace; fill: #fff; pointer-events: none; transition: opacity .15s ease; }
+    .f2-types { margin: 0; }
+    .f2-types button .cnt { color: var(--ink-3); }
+    .f2-types button.sel { border-color: var(--ink); color: var(--ink); background: var(--chip); }
+    #exPoints circle.hov { transition: none; }
+    .ex-legend[hidden], .ex-cbar[hidden], .ex-opts label[hidden] { display: none; }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="venue">Color and Imaging Conference · CIC 2026</div>
+    <h1>Do Vision Encoders Exhibit Human-like Color Thresholds?</h1>
+    <div class="spectrum" aria-hidden="true"></div>
+
+    <div class="authors">
+      <span><a href="https://scholar.google.com/citations?user=FwUYT_oAAAAJ&amp;hl=en" target="_blank" rel="noopener">Engy Ehab</a><sup>1,2,4</sup></span>
+      <span><a href="https://scholar.google.com/citations?user=figpQ9MAAAAJ&amp;hl=es" target="_blank" rel="noopener">Pablo Hernández-Cámara</a><sup>3</sup></span>
+      <span><a href="https://scholar.google.com/citations?hl=en&amp;user=7DIbfTcAAAAJ&amp;view_op=list_works&amp;sortby=pubdate" target="_blank" rel="noopener">Nahla Belal</a><sup>4</sup></span>
+      <span><a href="https://scholar.google.com/citations?user=0pgrklEAAAAJ&amp;hl=en" target="_blank" rel="noopener">Jesús Malo</a><sup>3</sup></span>
+      <span><a href="https://jvazquezcorral.github.io/" target="_blank" rel="noopener">Javier Vazquez-Corral</a><sup>1,2</sup></span>
+      <span><a href="https://sites.google.com/view/alex-gomez-villa" target="_blank" rel="noopener">Alexandra Gomez-Villa</a><sup>1,2</sup></span>
+    </div>
+    <div class="affils">
+      <span><sup>1</sup>Computer Vision Center, Spain</span>
+      <span><sup>2</sup>Universitat Autònoma de Barcelona, Spain</span>
+      <span><sup>3</sup>Image Processing Lab, Universitat de València, Spain</span>
+      <span><sup>4</sup>Arab Academy for Science, Technology and Maritime Transport, Egypt</span>
+    </div>
+
+    <div class="buttons">
+      <a class="btn" href="static/paper.pdf" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+        Paper
+      </a>
+      <!-- Replace with your code repository URL -->
+      <a class="btn" href="https://github.com/USERNAME/REPO" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        Code
+      <a class="btn" href="https://arxiv.org/abs/2607.16540" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4l14 16M19 4L5 20"/></svg>
+        arXiv
+      </a>
+      <a class="btn" href="#bibtex">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg>
+        BibTeX
+      </a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="wrap">
+      <div class="text">
+        <h2>Abstract</h2>
+        <p>Understanding and characterizing human color perception is a longstanding research goal. One of the most traditional approaches is looking for human color discrimination thresholds, the minimum chromatic differences perceptible to human observers. Deep vision encoders, foundation models trained on large-scale visual data, map images into latent feature representations; despite their widespread use, few studies have investigated whether these representations exhibit human-like discrimination thresholds.</p>
+        <p>We present a large-scale exploratory study probing the chromatic sensitivity of more than 50 pretrained vision encoders, including convolutional networks and vision transformers, against human discrimination thresholds. Using controlled chromatic stimuli at multiple chroma levels, we compare model-derived discrimination thresholds with human discrimination ellipses through a region-overlap metric (mIoU). Alignment is generally weak across all model families, with the best mIoU below 0.25. Self-supervised encoders consistently outperform supervised ones, while language-supervised models show the most polarized behavior, occupying both the top and bottom of the ranking. These findings suggest that human-like chromatic sensitivity does not emerge naturally from current large-scale visual training objectives for any of the analyzed architectures.</p>
+
+        <div class="stats">
+          <div class="stat"><div class="n">50+</div><div class="l">pretrained encoders: CNNs, ViTs and hybrids</div></div>
+          <div class="stat"><div class="n">18</div><div class="l">reference colors around the hue circle</div></div>
+          <div class="stat"><div class="n">4</div><div class="l">chroma levels, C ∈ {5, 20, 60, 80}</div></div>
+          <div class="stat"><div class="n">&lt;0.25</div><div class="l">best mIoU with human ellipses (AIM-v2)</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="method">
+    <div class="wrap">
+      <div class="text">
+        <h2>How one similarity field is built</h2>
+        <p>Each Circle in the figure below is built from a single reference color. Step through the example to see how, using the real DINOv2 similarity field for the reference color (a*, b*) = (30, 52) at chroma 60. Hoever any sample to inspect it.</p>
+      </div>
+
+      <div class="explainer" id="explainer">
+        <div class="ex-stage">
+          <svg id="exSvg" viewBox="-1.12 -1.12 2.24 2.24" role="img" aria-label="Interactive example of how a similarity field is built">
+            <defs>
+              <clipPath id="exClip"><circle cx="0" cy="0" r="1"/></clipPath>
+            </defs>
+            <circle class="ex-disc" cx="0" cy="0" r="1"/>
+            <image id="exField" clip-path="url(#exClip)" preserveAspectRatio="none"/>
+            <g class="ex-axes">
+              <line x1="-1.06" y1="0" x2="1.06" y2="0"/>
+              <line x1="0" y1="-1.06" x2="0" y2="1.06"/>
+              <text x="1.07" y="-0.03" text-anchor="end">Δa*</text>
+              <text x="0.03" y="-1.0">Δb*</text>
+            </g>
+            <g id="exPoints"></g>
+            <ellipse id="exEllipse" cx="0" cy="0"/>
+            <circle id="exRef" cx="0" cy="0" r="0.07"/>
+            <g id="exRadius">
+              <line x1="0" y1="0" x2="0" y2="0"/>
+              <text></text>
+            </g>
+          </svg>
+          <div class="ex-tip" id="exTip" hidden></div>
+        </div>
+
+        <div class="ex-panel">
+          <ol class="ex-steps" id="exSteps">
+            <li><button type="button" data-step="0">Reference</button></li>
+            <li><button type="button" data-step="1">Sample</button></li>
+            <li><button type="button" data-step="2">Distance</button></li>
+            <li><button type="button" data-step="3">Human region</button></li>
+            <li><button type="button" data-step="4">IoU</button></li>
+          </ol>
+
+          <div class="ex-body">
+            <div class="ex-kicker" id="exKicker">Step 1 of 5</div>
+            <h3 id="exTitle"></h3>
+            <p id="exText"></p>
+
+            <div class="ex-box" id="exBox"></div>
+
+            <div class="ex-cbar" id="exCbar" hidden>
+              <div class="ex-cbar-bar" id="exCbarBar"></div>
+              <div class="ex-cbar-ticks"><span>0.0</span><span>0.5</span><span>1.0</span></div>
+              <div class="ex-cbar-label"><span>close to reference</span><span>cosine distance</span><span>far from reference</span></div>
+            </div>
+
+            <div class="ex-legend" id="exLegend" hidden>
+              <span><i class="lg-both"></i>in both (G ∩ P)</span>
+              <span><i class="lg-p"></i>model only (P)</span>
+              <span><i class="lg-g"></i>human only (G)</span>
+            </div>
+
+            <div class="ex-opts">
+              <label id="exExagWrap"><input type="checkbox" id="exExag"> Exaggerate color differences ×6</label>
+              <label id="exFieldWrap"><input type="checkbox" id="exFieldToggle" checked> Show interpolated heatmap</label>
+            </div>
+          </div>
+
+          <div class="ex-nav">
+            <button type="button" class="ex-btn ghost" id="exPrev">← Back</button>
+            <button type="button" class="ex-btn ghost" id="exResample" title="Draw a new set of 500 samples">↻ Resample</button>
+            <button type="button" class="ex-btn" id="exNext">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="text">
+        <div class="eq">IoU = <span class="frac"><span>|G ∩ P|</span><span>|G ∪ P|</span></span></div>
+        <p>Because |G| = |P| = 250, the metric is not biased by region size. Repeating this for all 18 reference colors and 4 chroma levels and averaging gives the mIoU used to rank encoders: 1 means the model's nearest colors match the human discrimination region exactly, 0 means no overlap.</p>
+        <ul class="params">
+          <li>human discrimination ellipses</li>
+          <li>L* = 50 fixed</li>
+          <li>C ∈ {5, 20, 60, 80}</li>
+          <li>18 hues, 20° apart</li>
+          <li>500 samples / reference</li>
+          <li>cosine distance</li>
+          <li>frozen features</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="text">
+        <h2>The Full Figure</h2>
+        <p>The same procedure, repeated for every reference hue and several encoders. Each row is one model, each column one reference color.</p>
+      </div>
+      <div class="teaser">
+        <img src="static/images/fig1_similarity_fields.png" alt="Grid of circular heatmaps showing cosine distance around 18 reference colors for DINOv2, VGG16, OpenAI CLIP, SD3-VAE and Perception Encoder, with human discrimination ellipses overlaid.">
+      </div>
+      <p class="caption"><b>Chromatic similarity fields at chroma 60.</b> Blue = colors the model treats as close to the reference, red = distinct. Black ellipses mark the human discrimination region. All encoders learn structured, anisotropic fields, and some follow the ellipse orientation, but none reproduce the region's extent. The bottom bar gives each model's mIoU.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="text">
+        <h2>Key findings</h2>
+        <div class="findings">
+          <div class="finding">
+            <div class="k">01</div>
+            <div><h3>Encoders learn color structure, but not human thresholds</h3>
+            <p>Every encoder develops anisotropic similarity fields whose shape changes with hue, mirroring the qualitative non-uniformity of human vision. Their extent and boundaries, however, diverge from the psychophysical ellipses: the best model reaches an mIoU of about 0.22.</p></div>
+          </div>
+          <div class="finding">
+            <div class="k">02</div>
+            <div><h3>The training objective matters more than scale</h3>
+            <p>Self-supervised encoders (e.g. DINOv2, EVA-02) generally align best. Classical CNNs such as VGG16 remain competitive with much larger transformer-based foundation models, so more parameters do not translate into more human-like color thresholds.</p></div>
+          </div>
+          <div class="finding">
+            <div class="k">03</div>
+            <div><h3>Language supervision is polarizing</h3>
+            <p>AIM-v2 ranks first among all encoders, while several other language-supervised models rank among the lowest. CLIP-style fields are smooth and diffuse, consistent with a semantically compressed space that de-emphasizes fine chromatic distinctions.</p></div>
+          </div>
+          <div class="finding">
+            <div class="k">04</div>
+            <div><h3>Blues and saturation are hard</h3>
+            <p>Alignment depends strongly on hue and chroma. Blue regions, also notoriously non-uniform for humans, score low for nearly every encoder, especially at high chroma. The ranking of models, however, stays stable across conditions.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="text">
+        <h2>Results</h2>
+        <p>Ranking all encoders by mIoU shows a low ceiling and a narrow spread: no training paradigm approaches near-human agreement.</p>
+      </div>
+
+      <figure class="ifig" id="fig2">
+        <div class="frame">
+          <div class="if-head">
+            <div class="if-title">mIoU ranking of all 52 encoders</div>
+            <div class="if-legend f2-types" id="f2Types"></div>
+          </div>
+          <div class="if-plot">
+            <svg id="f2Svg" viewBox="0 0 900 380" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Bar chart ranking all evaluated encoders by mIoU, from 0.224 for AIM-v2 down to 0.088, colored by training paradigm"></svg>
+            <div class="if-tip" id="f2Tip" hidden></div>
+          </div>
+        </div>
+        <figcaption><b>mIoU between model and human discrimination regions for all evaluated encoders.</b> Hover a bar to see the model and its score; click a training paradigm to highlight its models. Higher is better. Supervised models show the largest variability; language-supervised models appear at both ends of the ranking.</figcaption>
+      </figure>
+
+      <figure class="ifig" id="fig3">
+        <div class="frame">
+          <div class="if-head">
+            <div class="if-title">IoU per reference ellipse</div>
+            <div class="if-tabs" role="tablist" aria-label="Chroma level">
+              <button type="button" role="tab" data-chroma="5">C = 5</button>
+              <button type="button" role="tab" data-chroma="20">C = 20</button>
+              <button type="button" role="tab" data-chroma="60">C = 60</button>
+              <button type="button" role="tab" data-chroma="80">C = 80</button>
+            </div>
+          </div>
+          <div class="if-plot">
+            <svg id="f3Svg" viewBox="0 0 900 380" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Line chart of IoU across 18 reference ellipses for 10 encoders"></svg>
+            <div class="if-tip" id="f3Tip" hidden></div>
+          </div>
+          <div class="if-legend" id="f3Legend"></div>
+        </div>
+        <figcaption><b>IoU across hue and chroma for representative encoders.</b> Hover a line to read its value; click a model in the legend to hide or show it. Values are taken directly from the paper's Figure 3. At chroma 60 and 80, IoU collapses over a long run of hues that includes the blues, while the ordering of models stays largely unchanged.</figcaption>
+      </figure>
+
+      <details>
+        <summary>All evaluated encoders and their training paradigms</summary>
+        <div class="models">
+          <div class="group">
+            <h4 style="color:var(--ssl)">Self-supervised</h4>
+            <ul>
+              <li>resmlp_12_224.fb_dino</li>
+              <li>vit_base_patch14_dinov2</li>
+              <li>convnextv2_atto.fcmae</li>
+              <li>sam2_hiera_base_plus.fb_r896</li>
+              <li>eva02_base_patch14_224.mim_in22k</li>
+              <li>hiera_base_224.mae</li>
+            </ul>
+          </div>
+          <div class="group">
+            <h4 style="color:var(--lang)">Language-supervised</h4>
+            <ul>
+              <li>aimv2_1b_patch14_224.apple_pt</li>
+              <li>OpenAI ViT-B-32</li>
+              <li>vit_base_mci_224.apple_mclip</li>
+              <li>vitamin_base_224.datacomp1b_clip</li>
+              <li>PE-Core-L14-336</li>
+            </ul>
+          </div>
+          <div class="group">
+            <h4 style="color:var(--unsup)">Unsupervised (VAE)</h4>
+            <ul>
+              <li>stable-diffusion-xl-base-1.0</li>
+            </ul>
+          </div>
+          <div class="group">
+            <h4 style="color:var(--sup)">Supervised</h4>
+            <ul>
+              <li>senet154.gluon_in1k</li>
+              <li>mixnet_l.ft_in1k</li>
+              <li>nest_base_jx.goog_in1k</li>
+              <li>haloregnetz_b.ra3_in1k</li>
+              <li>gmixer_24_224.ra3_in1k</li>
+              <li>efficientformerv2_l.snap_dist_in1k</li>
+              <li>sequencer2d_l.in1k</li>
+              <li>flexivit_base.1000ep_in21k</li>
+              <li>swinv2_base_window12_192.ms_in22k</li>
+              <li>beitv2_base_patch16_224.in1k_ft_in1k</li>
+              <li>beit_base_patch16_224.in22k_ft_in22k</li>
+              <li>deit3_base_patch16_224.fb_in1k</li>
+              <li>twins_pcpvt_base.in1k</li>
+              <li>xcit_large_24_p16_224.fb_dist_in1k</li>
+              <li>cait_m36_384.fb_dist_in1k</li>
+              <li>crossvit_15_240.in1k</li>
+              <li>pit_b_224.in1k</li>
+              <li>vgg16</li>
+              <li>vgg11.tv_in1k</li>
+              <li>densenet121.ra_in1k</li>
+              <li>resnet101.a1_in1k</li>
+              <li>wide_resnet101_2.tv2_in1k</li>
+              <li>res2net101_26w_4s.in1k</li>
+              <li>seresnext101_32x4d.gluon_in1k</li>
+              <li>resnest101e.in1k</li>
+              <li>nfnet_l0.ra2_in1k</li>
+              <li>dpn107.mx_in1k</li>
+              <li>mobilevit_s.cvnets_in1k</li>
+              <li>mobilevitv2_050.cvnets_in1k</li>
+              <li>ghostnetv2_100.in1k</li>
+              <li>efficientnet_b0.ra4_e3600_r224_in1k</li>
+              <li>efficientvit_b0.r224_in1k</li>
+              <li>tiny_vit_11m_224.dist_in22k</li>
+              <li>mobilenet_edgetpu_v2_m.ra4_e3600_r224_in1k</li>
+              <li>repvit_m0_9.dist_300e_in1k</li>
+              <li>coatnet_0_rw_224.sw_in1k</li>
+              <li>nextvit_base.bd_in1k</li>
+              <li>mambaout_base.in1k</li>
+              <li>maxvit_base_tf_224.in1k</li>
+              <li>focalnet_base_lrf.ms_in1k</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="text">
+        <h2>Why it matters</h2>
+        <p>Frozen embeddings from foundation models are increasingly used for color-sensitive tasks such as color matching, digital art preservation and fine-grained product inspection. If a model places a perceptually distinct color change inside a region of high latent similarity, any downstream task built on that embedding will fail to preserve human-aligned color fidelity, particularly in highly saturated or non-uniform regions of color space.</p>
+        <p>Future work will move from flat patches to textured surfaces and object renderings, and will compare the orientation and eccentricity of model-induced similarity fields directly with the psychophysical ellipses.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="bibtex">
+    <div class="wrap">
+      <div class="text">
+        <h2>BibTeX</h2>
+        <div class="bib">
+          <button class="copy" type="button" id="copyBtn">Copy</button>
+<pre id="bibText">@inproceedings{ehab2026vision,
+  title     = {Do Vision Encoders Exhibit Human-like Color Thresholds?},
+  author    = {Ehab, Engy and Hern{\'a}ndez-C{\'a}mara, Pablo and Belal, Nahla
+               and Malo, Jes{\'u}s and Vazquez-Corral, Javier
+               and Gomez-Villa, Alexandra},
+  booktitle = {Proceedings of the Color and Imaging Conference (CIC)},
+  year      = {2026}
+}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="text">
+      <p>This work was partially funded by grants PID2023-152133NB-I00 and PID2024-162555OB-I00 (MICIU/AEI/10.13039/501100011033, ERDF/EU, FEDER), FPU21/02256, Càtedra ENIA UAB-Cruïlla (TSI-100929-2023-2) and the BBVA Foundation (VIS4NN). Computing resources were provided by EuroHPC (Leonardo at CINECA, EHPC-DEV-2026D02-234) and RES (MareNostrum5 at BSC, IM-2026-1-0062).</p>
+      <p>Page template released under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var btn = document.getElementById('copyBtn');
+    var txt = document.getElementById('bibText');
+    if (!btn || !txt) return;
+    btn.addEventListener('click', function () {
+      var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt.textContent).then(done, function () { fallback(); });
+      } else { fallback(); }
+      function fallback() {
+        var r = document.createRange(); r.selectNodeContents(txt);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        s.removeAllRanges();
+      }
+    });
+  })();
+</script>
+<script src="static/js/data.js"></script>
+<script src="static/js/explainer.js"></script>
+<script src="static/js/fig2.js"></script>
+<script src="static/js/fig3.js"></script>
+</body>
+</html>
